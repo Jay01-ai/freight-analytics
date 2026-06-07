@@ -23,10 +23,8 @@ forecast  = pd.read_csv("models/forecast.csv")
 df        = pd.read_csv("featured_freight.csv")
 df["RR DATE"] = pd.to_datetime(df["RR DATE"])
 
-# ── Configure Groq AI ──────────────────────────────────
+# ── Configure Groq AI ─────────────
 import os
-from dotenv import load_dotenv
-load_dotenv()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 def ask_ai(prompt: str) -> str:
