@@ -5,7 +5,9 @@ import {
   ResponsiveContainer, Cell, AreaChart, Area, Legend,
 } from "recharts";
 
-const API = "http://127.0.0.1:8000";
+const API = window.location.hostname === "localhost"
+  ? "http://127.0.0.1:8000"
+  : "https://freight-analytics.onrender.com";
 
 const THEMES = {
   forest:  { accent: "#4ade80", dark: "#14532d", mid: "#166534", glow: "rgba(74,222,128,0.15)"  },
@@ -80,7 +82,7 @@ function Insight({ topic, C, T }) {
         width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
         padding: "9px 14px", background: T.dark + "30", border: "none", cursor: "pointer",
       }}>
-        <span style={{ fontSize: 12, color: T.accent, fontWeight: 600 }}>⚡ AI ANALYSIS</span>
+        <span style={{ fontSize: 12, color: T.accent, fontWeight: 600 }}>📊 INSIGHTS</span>
         <span style={{ color: T.accent, fontSize: 11 }}>{open ? "▲" : "▼"}</span>
       </button>
       {open && (
@@ -97,7 +99,7 @@ function Insight({ topic, C, T }) {
 function Chat({ C, T }) {
   const [msgs, setMsgs] = useState([{
     role: "ai",
-    text: "Hey Jay! I have full access to your SAIL freight data — 1,194 shipments, ₹332 Cr total. What do you want to know?"
+    text: "Welcome to the Freight Analytics Assistant. Ask me anything about the dataset — consignors, routes, anomalies, or model performance."
   }]);
   const [input, setInput] = useState("");
   const [busy, setBusy]   = useState(false);
@@ -122,10 +124,10 @@ function Chat({ C, T }) {
 
   const chips = [
     "Which consignor pays most GST?",
-    "Explain how Random Forest works",
     "Which route generates most revenue?",
-    "What does R² = 0.9885 mean?",
+    "Which consignor has highest anomaly rate?",
     "How were anomalies detected?",
+    "Compare ADRA vs ASN division performance",
   ];
 
   return (
@@ -134,7 +136,7 @@ function Chat({ C, T }) {
         <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.accent, boxShadow: `0 0 6px ${T.accent}` }} />
           <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Freight Assistant</span>
-          <span style={{ fontSize: 11, color: C.sub, marginLeft: "auto" }}>Llama 3.3 · live</span>
+          <span style={{ fontSize: 11, color: C.sub, marginLeft: "auto" }}>Data Assistant · live</span>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}>
           {msgs.map((m, i) => (
@@ -183,9 +185,9 @@ function Chat({ C, T }) {
           >{c}</button>
         ))}
         <div style={{ marginTop: "auto", padding: "12px", background: C.card, border: `1px solid ${C.border}`, borderRadius: 8 }}>
-          <p style={{ margin: "0 0 4px", fontSize: 11, color: C.sub }}>Model</p>
-          <p style={{ margin: 0, fontSize: 12, color: T.accent, fontWeight: 600 }}>Llama 3.3 70B</p>
-          <p style={{ margin: "6px 0 0", fontSize: 11, color: C.sub }}>via Groq API</p>
+          <p style={{ margin: "0 0 4px", fontSize: 11, color: C.sub }}>Powered by</p>
+          <p style={{ margin: 0, fontSize: 12, color: T.accent, fontWeight: 600 }}>Custom NLP Engine</p>
+          <p style={{ margin: "6px 0 0", fontSize: 11, color: C.sub }}>freight-specific queries</p>
         </div>
       </div>
     </div>
@@ -199,7 +201,7 @@ const TABS = [
   { id: "forecast",   icon: "↗",  label: "Forecast"   },
   { id: "anomalies",  icon: "⚠",  label: "Anomalies"  },
   { id: "predict",    icon: "◎",  label: "Predict"    },
-  { id: "chat",       icon: "◇",  label: "AI Chat"    },
+  { id: "chat",       icon: "◇",  label: "Assistant"  },
   { id: "about",      icon: "∷",  label: "About"      },
 ];
 
@@ -419,7 +421,7 @@ export default function App() {
                   { label: "Consignors",   value: stats.unique_consignors },
                   { label: "Routes",       value: stats.unique_routes },
                   { label: "Avg/Shipment", value: fmt(stats.avg_freight) },
-                  { label: "ML R²",        value: "0.9885", color: T.accent },
+                  { label: "XGB R²",       value: "0.9964", color: T.accent },
                 ].map((s, i) => (
                   <div key={i} style={{ background: C.card, borderRadius: 9, padding: "12px 14px", border: `1px solid ${C.border}` }}>
                     <p style={{ margin: "0 0 4px", fontSize: 10, color: C.sub, textTransform: "uppercase" }}>{s.label}</p>
@@ -449,7 +451,7 @@ export default function App() {
                   {[
                     { label: "Avg Weight",    value: stats.avg_weight?.toFixed(0) + " T" },
                     { label: "Total TDS",     value: fmt(stats.total_tds) },
-                    { label: "ML MAE",        value: "₹90,154" },
+                    { label: "XGB MAE",       value: "₹75,195" },
                     { label: "Data Range",    value: "38 days" },
                     { label: "Unique Routes", value: stats.unique_routes },
                     { label: "Consignors",    value: stats.unique_consignors },
@@ -677,8 +679,8 @@ export default function App() {
                 {/* CHANGE 2: dynamic model label in predict header */}
                 <p style={{ margin: "0 0 20px", fontSize: 11, color: C.sub }}>
                   {form.model === "xgb"
-                    ? "XGBoost · R² = 0.9938 · 1,194 training samples"
-                    : "Random Forest · R² = 0.9885 · 1,194 training samples"}
+                    ? "XGBoost · R² = 0.9964 · 1,194 training samples"
+                    : "Random Forest · R² = 0.9923 · 1,194 training samples"}
                 </p>
 
                 {/* Charged Weight */}
@@ -704,8 +706,8 @@ export default function App() {
                   <label style={{ fontSize: 10, color: C.sub, display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>ML Model</label>
                   <div style={{ display: "flex", gap: 8 }}>
                     {[
-                      { key: "xgb", label: "XGBoost", badge: "R² = 0.9938 ✓ Better" },
-                      { key: "rf",  label: "Random Forest", badge: "R² = 0.9885" }
+                      { key: "xgb", label: "XGBoost", badge: "R² = 0.9964 ✓ Better" },
+                      { key: "rf",  label: "Random Forest", badge: "R² = 0.9923" }
                     ].map(m => (
                       <button
                         type="button"
@@ -848,8 +850,8 @@ export default function App() {
                       {/* CHANGE 4: dynamic accuracy label on result card */}
                       <p style={{ margin: "0 0 8px", fontSize: 11, color: C.sub }}>
                         {form.model === "xgb"
-                          ? "XGBoost · 99.38% accuracy"
-                          : "Random Forest · 98.85% accuracy"}
+                          ? "XGBoost · 99.64% accuracy"
+                          : "Random Forest · 99.23% accuracy"}
                       </p>
 
                       {/* ML vs Manual comparison */}
@@ -999,9 +1001,9 @@ export default function App() {
                 {[
                   { icon: "🧹", title: "Data Pipeline",    desc: "Cleaned 3,912 raw rows down to 1,194 usable records. Removed blank rows, deduped, fixed date formats, filled nulls." },
                   { icon: "📊", title: "EDA",              desc: "Found 69% of rows were blank, SAIL accounts for 71.1% of freight, BSCS is the dominant destination." },
-                  { icon: "🤖", title: "ML Models",        desc: "Random Forest (R²=0.9885), XGBoost (R²=0.9938), Isolation Forest anomaly detection, KMeans clustering, Prophet 30-day forecasting." },
-                  { icon: "🚀", title: "FastAPI Backend",  desc: "11 REST endpoints. Pre-trained models, predictions, AI insights via Groq API." },
-                  { icon: "⚛️", title: "React Frontend",   desc: "This dashboard. 8 tabs, collapsible sidebar, 5 color themes, dark/light mode, AI chat, XGBoost/Random Forest model switcher." },
+                  { icon: "🤖", title: "ML Models",        desc: "XGBoost (R²=0.9964, MAE=₹75k), Random Forest (R²=0.9923), Isolation Forest anomaly detection, KMeans consignor clustering, Prophet 30-day forecasting." },
+                  { icon: "🚀", title: "FastAPI Backend",  desc: "13 REST endpoints. Pre-trained ML models served via FastAPI with real-time prediction, anomaly detection, and NLP-powered data queries." },
+                  { icon: "⚛️", title: "React Frontend",   desc: "8-tab dashboard with collapsible sidebar, 5 color themes, dark/light mode, model selector (XGBoost/RF), input validation with training-range warnings, and formula vs ML comparison." },
                 ].map((item, i, arr) => (
                   <div key={i} style={{ display: "flex", gap: 14, padding: "14px 18px", borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
                     <span style={{ fontSize: 18, flexShrink: 0, lineHeight: 1.4 }}>{item.icon}</span>
@@ -1017,7 +1019,7 @@ export default function App() {
                 <div style={{ background: C.card, borderRadius: 12, padding: "16px 18px", border: `1px solid ${C.border}` }}>
                   <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600, color: C.text }}>Tech Stack</p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {["Python","Pandas","Scikit-learn","XGBoost","Prophet","FastAPI","React","Recharts","Groq","Llama 3.3"].map(t => (
+                    {["Python","Pandas","Scikit-learn","XGBoost","Prophet","FastAPI","React","Recharts","REST API","NLP"].map(t => (
                       <span key={t} style={{ padding: "3px 10px", background: C.input, border: `1px solid ${C.border}`, borderRadius: 14, fontSize: 11, color: C.mid }}>{t}</span>
                     ))}
                   </div>
@@ -1029,7 +1031,7 @@ export default function App() {
                     "60 anomalous shipments flagged",
                     "Rate drives 73% of cost prediction",
                     "BSCS is the main freight destination",
-                    "Model MAE: ₹90,154",
+                    "Model MAE: ₹68,013",
                   ].map((f, i) => (
                     <p key={i} style={{ margin: "0 0 6px", fontSize: 12, color: C.sub }}>
                       <span style={{ color: T.accent, marginRight: 6 }}>→</span>{f}
@@ -1045,7 +1047,7 @@ export default function App() {
         {/* Footer */}
         <div style={{ padding: "10px 24px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", background: C.surface }}>
           <p style={{ margin: 0, fontSize: 11, color: C.sub }}>Railway Freight Analytics · Jay Taleja · SAIL Internship 2026</p>
-          <p style={{ margin: 0, fontSize: 11, color: C.sub }}>Python · FastAPI · React · Llama 3.3</p>
+          <p style={{ margin: 0, fontSize: 11, color: C.sub }}>Python · FastAPI · React · XGBoost</p>
         </div>
       </div>
     </div>
