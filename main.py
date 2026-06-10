@@ -27,8 +27,16 @@ df["RR DATE"] = pd.to_datetime(df["RR DATE"])
 # ── Configure Groq AI ──────────────────────────────────
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# ── Feature column names (must match training) ─────────
-FEATURE_NAMES = [
+# ── XGBoost expects these 13 features in this exact order ─
+XGB_FEATURES = [
+    "CHRG WGHT", "ACTL WGHT", "RATE(Q)",
+    "BASIC_FREIGHT_CALC", "GST_AMT_CALC", "WEIGHT_RATIO",
+    "CNSR_ENC", "ROUTE_ENC", "DVSN_ENC",
+    "HAS_DEMURRAGE", "OTHR CHRG AMNT", "DAY_OF_WEEK", "MONTH"
+]
+
+# ── Random Forest expects these 9 features ─────────────
+RF_FEATURES = [
     "CHRG WGHT", "ACTL WGHT", "RATE(Q)",
     "CNSR_ENC", "ROUTE_ENC", "DVSN_ENC",
     "HAS_DEMURRAGE", "OTHR CHRG AMNT", "DAY_OF_WEEK"
@@ -92,7 +100,7 @@ def get_stats():
         "date_to"           : str(df["RR DATE"].max().date()),
     }
 
-# ── Route 3: Predict freight cost (FIXED) ─────────────
+# ── Route 3: Predict freight cost ─────────────────────
 @app.post("/predict")
 def predict_freight(data: dict):
     try:
@@ -111,44 +119,52 @@ def predict_freight(data: dict):
         othr_chrg_amnt = float(data.get("other_charges", 0))
         has_demurrage  = int(data.get("has_demurrage", 0))
         day_of_week    = int(data.get("day_of_week", 0))
+        month          = int(data.get("month", 4))
         model_choice   = data.get("model", "xgb")
 
         cnsr_enc  = safe_encode(encoders["cnsr"],  data.get("consignor", "SAIL"))
         route_enc = safe_encode(encoders["route"], data.get("route", ""))
         dvsn_enc  = safe_encode(encoders["dvsn"],  data.get("division", "ADRA"))
 
-        # ── Build DataFrame with exact training column names ──
-        feature_df = pd.DataFrame([[
+        # Derived features required by XGBoost
+        basic_freight_calc = chrg_wght * 10 * rate
+        gst_amt_calc       = basic_freight_calc * 0.05
+        weight_ratio       = chrg_wght / actl_wght if actl_wght > 0 else 1.0
+
+        # Build feature DataFrames with correct column names
+        xgb_df = pd.DataFrame([[
+            chrg_wght, actl_wght, rate,
+            basic_freight_calc, gst_amt_calc, weight_ratio,
+            cnsr_enc, route_enc, dvsn_enc,
+            has_demurrage, othr_chrg_amnt, day_of_week, month,
+        ]], columns=XGB_FEATURES)
+
+        rf_df = pd.DataFrame([[
             chrg_wght, actl_wght, rate,
             cnsr_enc, route_enc, dvsn_enc,
             has_demurrage, othr_chrg_amnt, day_of_week,
-        ]], columns=FEATURE_NAMES)
+        ]], columns=RF_FEATURES)
 
-        # ── Run selected model ────────────────────────────────
+        # Run selected model
         if model_choice == "rf":
-            prediction = float(rf.predict(feature_df)[0])
-            other_pred = float(xgb_model.predict(feature_df)[0])
+            prediction = float(rf.predict(rf_df)[0])
+            other_pred = float(xgb_model.predict(xgb_df)[0])
             other_name = "XGBoost"
             model_name = "Random Forest"
             model_r2   = "0.9923"
             model_mae  = "Rs90,154"
         else:
-            prediction = float(xgb_model.predict(feature_df)[0])
-            other_pred = float(rf.predict(feature_df)[0])
+            prediction = float(xgb_model.predict(xgb_df)[0])
+            other_pred = float(rf.predict(rf_df)[0])
             other_name = "Random Forest"
             model_name = "XGBoost"
             model_r2   = "0.9964"
             model_mae  = "Rs75,195"
 
-        # ── Manual cross-check formula ────────────────────────
-        # Railway freight = weight(tonnes) × 10 quintals/tonne × rate per quintal
-        basic_est  = chrg_wght * 10 * rate
+        # Correct manual cross-check formula
+        basic_est  = (chrg_wght * rate) / 100
         gst_est    = basic_est * 0.05
         manual_est = basic_est + gst_est + othr_chrg_amnt
-
-        print(f"DEBUG: weight={chrg_wght}, rate={rate}, cnsr={cnsr_enc}, "
-              f"route={route_enc}, dvsn={dvsn_enc}, model={model_choice}, "
-              f"prediction={prediction:.2f}")
 
         return {
             "predicted_freight" : round(prediction, 2),
@@ -303,7 +319,7 @@ def model_comparison():
 @app.get("/feature-stats")
 def feature_stats():
     return {
-        "chrg_wght"     : { "mean": round(float(df["CHRG WGHT"].mean())),     "min": round(float(df["CHRG WGHT"].min())),     "max": round(float(df["CHRG WGHT"].max()))     },
-        "rate"          : { "mean": round(float(df["RATE(Q)"].mean())),        "min": round(float(df["RATE(Q)"].min())),        "max": round(float(df["RATE(Q)"].max()))        },
-        "other_charges" : { "mean": round(float(df["OTHR CHRG AMNT"].mean())), "min": 0, "max": round(float(df["OTHR CHRG AMNT"].max())) },
+        "chrg_wght"     : { "mean": round(float(df["CHRG WGHT"].mean())),      "min": round(float(df["CHRG WGHT"].min())),      "max": round(float(df["CHRG WGHT"].max()))      },
+        "rate"          : { "mean": round(float(df["RATE(Q)"].mean())),         "min": round(float(df["RATE(Q)"].min())),         "max": round(float(df["RATE(Q)"].max()))         },
+        "other_charges" : { "mean": round(float(df["OTHR CHRG AMNT"].mean())),  "min": 0, "max": round(float(df["OTHR CHRG AMNT"].max())) },
     }
